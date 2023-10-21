@@ -30,6 +30,7 @@ type Server struct {
 
 	openID string
 
+	xmlParser      func(rawXMLMsgBytes []byte, msg *message.MixMessage) error
 	messageHandler func(*message.MixMessage) *message.Reply
 
 	RequestRawXMLMsg  []byte
@@ -48,6 +49,7 @@ type Server struct {
 func NewServer(context *context.Context) *Server {
 	srv := new(Server)
 	srv.Context = context
+	srv.xmlParser = defaultXmlParser
 	return srv
 }
 
@@ -187,10 +189,15 @@ func (srv *Server) getEncryptBody() (*message.EncryptedXMLMsg, error) {
 	return encryptedXMLMsg, nil
 }
 
+func defaultXmlParser(rawXMLMsgBytes []byte, msg *message.MixMessage) (err error) {
+	err = xml.Unmarshal(rawXMLMsgBytes, msg)
+	return
+}
+
 func (srv *Server) parseRequestMessage(rawXMLMsgBytes []byte) (msg *message.MixMessage, err error) {
 	msg = &message.MixMessage{}
 	if !srv.isJSONContent {
-		err = xml.Unmarshal(rawXMLMsgBytes, msg)
+		err = srv.xmlParser(rawXMLMsgBytes, msg)
 		return
 	}
 	// parse json
@@ -221,6 +228,10 @@ func (srv *Server) parseRequestMessage(rawXMLMsgBytes []byte) (msg *message.MixM
 // SetMessageHandler 设置用户自定义的回调方法
 func (srv *Server) SetMessageHandler(handler func(*message.MixMessage) *message.Reply) {
 	srv.messageHandler = handler
+}
+
+func (srv *Server) BuildResponse(reply *message.Reply) (err error) {
+	return srv.buildResponse(reply)
 }
 
 func (srv *Server) buildResponse(reply *message.Reply) (err error) {
