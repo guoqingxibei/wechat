@@ -198,16 +198,24 @@ func (srv *Server) parseRequestMessage(rawXMLMsgBytes []byte) (msg *message.MixM
 	msg = &message.MixMessage{}
 	if !srv.isJSONContent {
 		rawXMLMsg := string(rawXMLMsgBytes)
-		start := strings.Index(rawXMLMsg, contentStartMark) + len(contentStartMark)
+		contentStartMarkIndex := strings.Index(rawXMLMsg, contentStartMark)
+		start := contentStartMarkIndex + len(contentStartMark)
 		end := strings.LastIndex(rawXMLMsg, contentEndMark)
-		content := rawXMLMsg[start:end]
+		contentMarkExist := contentStartMarkIndex != -1 && end != -1
+		content := ""
+		if contentMarkExist {
+			content = rawXMLMsg[start:end]
+		}
+
 		xmlWithEmptyContent := strings.Replace(rawXMLMsg, content, "", 1)
 		err = xml.Unmarshal([]byte(xmlWithEmptyContent), msg)
 		if err != nil {
 			return
 		}
 
-		msg.Content = content[cdataOpenMarkLen : len(content)-cdataCloseMarkLen]
+		if contentMarkExist {
+			msg.Content = content[cdataOpenMarkLen : len(content)-cdataCloseMarkLen]
+		}
 		return
 	}
 	// parse json
