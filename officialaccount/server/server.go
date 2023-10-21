@@ -20,6 +20,13 @@ import (
 	"github.com/silenceper/wechat/v2/util"
 )
 
+const (
+	contentStartMark  = "<Content>"
+	contentEndMark    = "</Content>"
+	cdataOpenMarkLen  = 9 // len("<![CDATA["): 9
+	cdataCloseMarkLen = 3 // len("]]>"): 3
+)
+
 // Server struct
 type Server struct {
 	*context.Context
@@ -190,7 +197,17 @@ func (srv *Server) getEncryptBody() (*message.EncryptedXMLMsg, error) {
 func (srv *Server) parseRequestMessage(rawXMLMsgBytes []byte) (msg *message.MixMessage, err error) {
 	msg = &message.MixMessage{}
 	if !srv.isJSONContent {
-		err = xml.Unmarshal(rawXMLMsgBytes, msg)
+		rawXMLMsg := string(rawXMLMsgBytes)
+		start := strings.Index(rawXMLMsg, contentStartMark) + len(contentStartMark)
+		end := strings.LastIndex(rawXMLMsg, contentEndMark)
+		content := rawXMLMsg[start:end]
+		xmlWithEmptyContent := strings.Replace(rawXMLMsg, content, "", 1)
+		err = xml.Unmarshal([]byte(xmlWithEmptyContent), msg)
+		if err != nil {
+			return
+		}
+
+		msg.Content = content[cdataOpenMarkLen : len(content)-cdataCloseMarkLen]
 		return
 	}
 	// parse json
