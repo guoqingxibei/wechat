@@ -187,10 +187,16 @@ func (srv *Server) getEncryptBody() (*message.EncryptedXMLMsg, error) {
 	return encryptedXMLMsg, nil
 }
 
+func (srv *Server) ParseXMLToMsg(rawXMLMsg string) (msg *message.MixMessage, err error) {
+	msg = &message.MixMessage{}
+	err = xml.Unmarshal([]byte(rawXMLMsg), msg)
+	return
+}
+
 func (srv *Server) parseRequestMessage(rawXMLMsgBytes []byte) (msg *message.MixMessage, err error) {
 	msg = &message.MixMessage{}
 	if !srv.isJSONContent {
-		err = xml.Unmarshal(rawXMLMsgBytes, msg)
+		msg, err = srv.ParseXMLToMsg(string(rawXMLMsgBytes))
 		return
 	}
 	// parse json
@@ -221,6 +227,10 @@ func (srv *Server) parseRequestMessage(rawXMLMsgBytes []byte) (msg *message.MixM
 // SetMessageHandler 设置用户自定义的回调方法
 func (srv *Server) SetMessageHandler(handler func(*message.MixMessage) *message.Reply) {
 	srv.messageHandler = handler
+}
+
+func (srv *Server) BuildResponse(reply *message.Reply) (err error) {
+	return srv.buildResponse(reply)
 }
 
 func (srv *Server) buildResponse(reply *message.Reply) (err error) {
